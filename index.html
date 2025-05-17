@@ -1,13 +1,190 @@
-<!-- FULLY FIXED AND FUNCTIONAL VERSION -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PTP Trainer Matcher</title>
-  <!-- (Complete head, styles, scripts, and content loaded from Canvas) -->
+  <title>PTP Trainer + Field Matcher</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #fff;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    #map {
+      height: 60vh;
+      width: 100%;
+      margin-top: 10px;
+    }
+    .search-box {
+      padding: 20px;
+    }
+    input, button {
+      padding: 12px;
+      font-size: 1rem;
+      border-radius: 6px;
+      margin: 6px;
+      border: none;
+    }
+    input {
+      width: 90%;
+      max-width: 300px;
+    }
+    button {
+      background: #FFD700;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+      width: 90%;
+      max-width: 300px;
+    }
+    .card {
+      background: #1a1a1a;
+      margin: 20px auto;
+      padding: 20px;
+      border-left: 5px solid #FFD700;
+      border-radius: 10px;
+      max-width: 500px;
+      text-align: left;
+    }
+    .card h2 {
+      color: #FFD700;
+      margin-top: 0;
+    }
+    iframe {
+      margin-top: 20px;
+      width: 90%;
+      max-width: 500px;
+      height: 260px;
+      border: none;
+      border-radius: 10px;
+    }
+  </style>
 </head>
 <body>
-  <!-- (Full working content pulled from the canvas document) -->
+  <div class="search-box">
+    <h2 style="color:#FFD700;">📍 Get Matched with a Trainer & Field</h2>
+    <button onclick="useMyLocation()">Use My Location</button><br/>
+    <input id="zipInput" placeholder="or enter ZIP code..." /><br/>
+    <button onclick="matchTrainer()">Match Me</button>
+  </div>
+
+  <div id="map"></div>
+
+  <div class="card" id="resultCard" style="display:none;">
+    <button onclick="rematchTrainer()" style="width:100%;margin-bottom:15px;">🔄 Rematch</button>
+    <h2 id="trainerName"></h2>
+    <p><strong>Position:</strong> <span id="trainerPosition"></span></p>
+    <p><strong>Rating:</strong> <span id="trainerRating"></span> ⭐</p>
+    <p><em id="trainerReview"></em></p>
+    <p><strong>Matched Field:</strong> <span id="fieldName"></span></p>
+    <p><strong>Field Address:</strong> <span id="fieldAddress"></span></p>
+    <a id="bookingLink" href="#" target="_blank"><button>📅 Book This Trainer</button></a>
+  </div>
+
+  <iframe data-tally-src="https://tally.so/embed/woQDY1?alignLeft=1&hideTitle=1&transparentBackground=1&dynamicHeight=1"
+    loading="lazy" title="Save My Match"></iframe>
+
+  <script>
+    const trainers = [], fields = [];
+    let map, marker, userZip = "";
+
+    const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSClTYNvQo15rYGb6Au-Uxk84CxTuJ1Q5sLEhXd2ReLm0JyUbhQhOMSi1-I50hf3Rs4TArW6gmgbqfa/pub?gid=2095822811&single=true&output=csv";
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 40.05, lng: -75.4 },
+        zoom: 10
+      });
+    }
+
+    function getDistance(zip1, zip2) {
+      return Math.abs(parseInt(zip1) - parseInt(zip2));
+    }
+
+    function matchTrainer() {
+      const zip = document.getElementById("zipInput").value.trim();
+      if (!zip || zip.length < 5) return alert("Please enter a valid ZIP.");
+      userZip = zip;
+
+      const sorted = trainers.map(t => ({ ...t, dist: getDistance(zip, t.zip) })).sort((a,b) => a.dist - b.dist);
+      const bestTrainer = sorted[0];
+      const bestField = fields.map(f => ({ ...f, dist: getDistance(bestTrainer.zip, f.zip) })).sort((a,b) => a.dist - b.dist)[0];
+
+      renderMatch(bestTrainer, bestField);
+    }
+
+    function rematchTrainer() {
+      if (!userZip || trainers.length < 2) return;
+      const currentName = document.getElementById("trainerName").textContent;
+      const sorted = trainers.map(t => ({ ...t, dist: getDistance(userZip, t.zip) })).sort((a,b) => a.dist - b.dist);
+      const nextTrainer = sorted.find(t => t.name !== currentName);
+      const bestField = fields.map(f => ({ ...f, dist: getDistance(nextTrainer.zip, f.zip) })).sort((a,b) => a.dist - b.dist)[0];
+
+      renderMatch(nextTrainer, bestField);
+    }
+
+    function renderMatch(trainer, field) {
+      document.getElementById("trainerName").textContent = trainer.name;
+      document.getElementById("trainerPosition").textContent = trainer.position;
+      document.getElementById("trainerRating").textContent = trainer.rating;
+      document.getElementById("trainerReview").textContent = trainer.review;
+      document.getElementById("fieldName").textContent = field.name;
+      document.getElementById("fieldAddress").textContent = field.address;
+      document.getElementById("bookingLink").href = trainer.link + "?utm_zip=" + encodeURIComponent(userZip);
+
+      document.getElementById("resultCard").style.display = "block";
+
+      if (marker) marker.setMap(null);
+      marker = new google.maps.Marker({
+        map,
+        position: { lat: field.lat, lng: field.lng },
+        title: field.name,
+        icon: "http://maps.google.com/mapfiles/ms/icons/green-dot.png"
+      });
+      map.setCenter(marker.getPosition());
+      map.setZoom(13);
+    }
+
+    function useMyLocation() {
+      if (!navigator.geolocation) return alert("Geolocation not supported");
+      navigator.geolocation.getCurrentPosition(pos => {
+        fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${pos.coords.latitude},${pos.coords.longitude}&key=AIzaSyASLf8mjb8iEbVo99DnaaPzXGlu5jhXrZE`)
+          .then(res => res.json())
+          .then(data => {
+            const zip = data.results[0].address_components.find(c => c.types.includes("postal_code")).long_name;
+            document.getElementById("zipInput").value = zip;
+            matchTrainer();
+          });
+      });
+    }
+
+    function loadCSVData() {
+      fetch(csvUrl)
+        .then(res => res.text())
+        .then(text => {
+          const rows = text.trim().split("\\n").slice(1);
+          rows.forEach(row => {
+            const [name, zip, link, fieldName, fieldZip, address, lat, lng, rating, review, img, position] = row.split(",");
+            if (lat && lng && !isNaN(parseFloat(lat))) {
+              trainers.push({ name, zip, link, rating, review, position });
+              if (!fields.some(f => f.name === fieldName)) {
+                fields.push({ name: fieldName, zip: fieldZip, address, lat: parseFloat(lat), lng: parseFloat(lng) });
+              }
+            }
+          });
+        });
+    }
+
+    loadCSVData();
+  </script>
+
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyASLf8mjb8iEbVo99DnaaPzXGlu5jhXrZE&callback=initMap"></script>
+  <script>
+    var d=document,s=d.createElement("script");
+    s.src="https://tally.so/widgets/embed.js";s.defer=true;d.body.appendChild(s);
+  </script>
 </body>
 </html>
