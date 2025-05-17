@@ -38,9 +38,7 @@
       font-weight: bold;
       cursor: pointer;
     }
-    .trainer-list {
-      padding: 20px;
-    }
+    .trainer-list { padding: 20px; }
     .trainer-card {
       background: #1a1a1a;
       margin: 10px auto;
@@ -50,10 +48,7 @@
       max-width: 500px;
       color: #f1f1f1;
     }
-    .trainer-card h3 {
-      color: #FFD700;
-      margin-top: 0;
-    }
+    .trainer-card h3 { color: #FFD700; margin-top: 0; }
     .btn {
       background: #FFD700;
       color: #000;
@@ -92,35 +87,43 @@
       <option value="Goalkeeper">Goalkeeper</option>
     </select>
   </div>
-
   <div id="map"></div>
   <div class="trainer-list" id="trainerList"></div>
   <div class="sticky-cta">⚽ Spots Filling Fast – Book Your Private Training Today!</div>
 
   <script>
-    let map, trainers = [], originCoords = null;
+    let map, originCoords = null, popupInfo;
     const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSClTYNvQo15rYGb6Au-Uxk84CxTuJ1Q5sLEhXd2ReLm0JyUbhQhOMSi1-I50hf3Rs4TArW6gmgbqfa/pub?gid=2095822811&single=true&output=csv";
+    const trainers = [];
+    const fields = [];
 
     function initMap() {
-      map = new google.maps.Map(document.getElementById('map'), {
-        center: { lat: 40.0, lng: -75.2 },
-        zoom: 9
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 40.05, lng: -75.4 },
+        zoom: 10
       });
 
       fetch(csvUrl)
         .then(res => res.text())
         .then(text => {
-          const rows = text.split('\\n').slice(1);
-          for (let row of rows) {
-            const [name, zip, link, fieldName, fieldZip, address, lat, lng, rating, reviews, img, position] = row.split(',');
-            if (!lat || !lng || isNaN(parseFloat(lat)) || isNaN(parseFloat(lng))) continue;
-            const latLng = { lat: parseFloat(lat), lng: parseFloat(lng) };
-            trainers.push({ name, zip, link, fieldName, fieldZip, address, lat: latLng.lat, lng: latLng.lng, rating, reviews, img, position });
-            new google.maps.Marker({ position: latLng, map, title: name });
-          }
-        }).catch(err => {
-          document.getElementById("trainerList").innerHTML = "❌ Failed to load trainer data.";
-          console.error(err);
+          const rows = text.trim().split("\\n").slice(1);
+          rows.forEach(row => {
+            const [name, zip, link, fieldName, fieldZip, address, lat, lng, rating, reviews, img, position] = row.split(",");
+            const latNum = parseFloat(lat), lngNum = parseFloat(lng);
+            if (!isNaN(latNum) && !isNaN(lngNum)) {
+              const latLng = { lat: latNum, lng: lngNum };
+              if (!fields.find(f => f.name === fieldName)) {
+                fields.push({ name: fieldName, zip: fieldZip, lat: latNum, lng: lngNum, address });
+                new google.maps.Marker({
+                  position: latLng,
+                  map,
+                  icon: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                  title: fieldName
+                });
+              }
+              trainers.push({ name, zip, link, fieldName, fieldZip, address, lat: latNum, lng: lngNum, rating, reviews, img, position });
+            }
+          });
         });
     }
 
@@ -130,48 +133,53 @@
           originCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           matchTrainerToClosestField();
         }, () => alert("Location access denied."));
-      } else {
-        alert("Geolocation not supported.");
       }
     }
-
     function useZipLocation() {
       const zip = document.getElementById("zipFallback").value.trim();
+      if (!zip) return alert("Please enter a ZIP code.");
       fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${zip}&key=AIzaSyASLf8mjb8iEbVo99DnaaPzXGlu5jhXrZE`)
         .then(res => res.json())
         .then(data => {
-          if (!data.results || !data.results[0] || !data.results[0].geometry) {
-            alert("Invalid ZIP code");
-            return;
-          }
-          const loc = data.results[0].geometry.location;
-          originCoords = { lat: loc.lat, lng: loc.lng };
+          if (!data.results?.[0]?.geometry?.location) throw new Error();
+          const { lat, lng } = data.results[0].geometry.location;
+          originCoords = { lat, lng };
           matchTrainerToClosestField();
-        }).catch(() => alert("ZIP lookup failed."));
+        })
+        .catch(() => alert("Invalid ZIP code or lookup failed."));
     }
 
     function matchTrainerToClosestField() {
-      const positionPref = document.getElementById("positionFilter").value.toLowerCase();
-      const list = document.getElementById("trainerList");
-      const sorted = trainers
-        .filter(t => !positionPref || (t.position && t.position.toLowerCase().includes(positionPref)))
-        .map(t => {
-          const dist = Math.hypot(originCoords.lat - t.lat, originCoords.lng - t.lng);
-          return { ...t, dist };
-        })
-        .sort((a, b) => a.dist - b.dist);
+      const filter = document.getElementById("positionFilter").value.toLowerCase();
+      const results = trainers
+        .filter(t => !filter || t.position?.toLowerCase().includes(filter))
+        .map(t => ({ ...t, dist: Math.hypot(t.lat - originCoords.lat, t.lng - originCoords.lng) }))
+        .sort((a, b) => a.dist - b.dist)
+        .slice(0, 5);
 
-      list.innerHTML = '';
-      sorted.slice(0, 5).forEach(t => {
-        const div = document.createElement("div");
-        div.className = "trainer-card";
-        div.innerHTML = `
-          <h3>${t.name}</h3>
+      const container = document.getElementById("trainerList");
+      container.innerHTML = "";
+      results.forEach((t, i) => {
+        const el = document.createElement("div");
+        el.className = "trainer-card";
+        el.innerHTML = `<h3>${t.name}</h3>
           <p><strong>Position:</strong> ${t.position}</p>
+          <p><strong>Field:</strong> ${t.fieldName}</p>
           <p><strong>Address:</strong> ${t.address}</p>
           <p><strong>Distance:</strong> ${t.dist.toFixed(2)}</p>
-          <a href="${t.link}" class="btn" target="_blank">Book Now</a>`;
-        list.appendChild(div);
+          <p><strong>Rating:</strong> ${t.rating}</p>
+          <p><em>${t.reviews}</em></p>
+          <a class="btn" href="${t.link}" target="_blank">Book Now</a>`;
+        container.appendChild(el);
+
+        if (i === 0) {
+          if (popupInfo) popupInfo.close();
+          popupInfo = new google.maps.InfoWindow({
+            content: `<strong>${t.name}</strong><br>${t.position}<br>${t.rating}⭐<br><em>${t.reviews}</em><br><a href='${t.link}' target='_blank'>Book</a>`
+          });
+          popupInfo.setPosition({ lat: t.lat, lng: t.lng });
+          popupInfo.open(map);
+        }
       });
     }
   </script>
