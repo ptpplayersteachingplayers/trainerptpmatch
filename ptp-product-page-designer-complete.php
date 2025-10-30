@@ -49,8 +49,9 @@ class PTP_Product_Page_Designer_Complete {
         // Output lightweight UX helpers
         add_action('wp_footer', array($this, 'output_invite_friend_script'), 25);
 
-        // Keep related products in default position
-        add_action('woocommerce_after_single_product_summary', 'woocommerce_output_related_products', 20);
+        // Place related products directly beneath the summary content
+        remove_action('woocommerce_after_single_product_summary', 'woocommerce_output_related_products', 20);
+        add_action('woocommerce_single_product_summary', array($this, 'add_related_products_block'), 80);
     }
 
     /**
@@ -799,6 +800,31 @@ class PTP_Product_Page_Designer_Complete {
         });
         </script>
         <?php
+    }
+
+    /**
+     * Render related products within the summary column for consistent UX.
+     */
+    public function add_related_products_block() {
+        if (!is_product()) {
+            return;
+        }
+
+        ob_start();
+        woocommerce_output_related_products();
+        $html = trim(ob_get_clean());
+
+        if (empty($html)) {
+            return;
+        }
+
+        echo '<section class="ptp-related-products" aria-labelledby="ptp-related-heading">';
+        echo '<div class="ptp-related-header">';
+        echo '<h3 id="ptp-related-heading">' . esc_html__('More camps you might like', 'ptp') . '</h3>';
+        echo '<p>' . esc_html__('Invite a teammate or explore another session nearby.', 'ptp') . '</p>';
+        echo '</div>';
+        echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo '</section>';
     }
 }
 
