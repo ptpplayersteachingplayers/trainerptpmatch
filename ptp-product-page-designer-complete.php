@@ -21,20 +21,20 @@ class PTP_Product_Page_Designer_Complete {
         // Add facts bar after title
         add_action('woocommerce_single_product_summary', array($this, 'add_facts_bar'), 8);
 
-        // Add coach strip
-        add_action('woocommerce_single_product_summary', array($this, 'add_coach_strip'), 70);
-
         // Add price in buy box and social proof
         add_action('woocommerce_single_product_summary', array($this, 'add_buy_box_price'), 25);
+
+        // Add coach strip beneath gallery
+        add_action('woocommerce_product_thumbnails', array($this, 'add_coach_strip'), 40);
 
         // Add trust badges and urgency section after cart button
         add_action('woocommerce_after_add_to_cart_button', array($this, 'add_trust_urgency_section'));
 
-        // Add invite-a-friend CTA in summary column
-        add_action('woocommerce_single_product_summary', array($this, 'add_invite_friend_section'), 55);
+        // Add invite-a-friend CTA beneath gallery
+        add_action('woocommerce_product_thumbnails', array($this, 'add_invite_friend_section'), 50);
 
         // Add Trustindex reviews under product image
-        add_action('woocommerce_product_thumbnails', array($this, 'add_trustindex_under_image'), 25);
+        add_action('woocommerce_product_thumbnails', array($this, 'add_trustindex_under_image'), 60);
 
         // Move tabs to right column under payment section
         remove_action('woocommerce_after_single_product_summary', 'woocommerce_output_product_data_tabs', 10);

@@ -127,6 +127,12 @@ html {
   margin: 0 !important;
 }
 
+.woocommerce div.product div.images .ptp-coach-strip,
+.woocommerce div.product div.images .ptp-invite-friends,
+.woocommerce div.product div.images .ptp-trustindex-under-image {
+  width: 100% !important;
+}
+
 /* ========================================
    SUMMARY COLUMN CONTENT
    ======================================== */
@@ -249,6 +255,7 @@ html {
   border-radius: 16px !important;
   padding: 18px 20px !important;
   background: var(--ptp-soft-bg) !important;
+  margin-top: 24px !important;
 }
 
 .ptp-coach-strip-inner {
@@ -290,7 +297,7 @@ html {
 
 /* Invite a friend */
 .ptp-invite-friends {
-  margin-top: 8px !important;
+  margin-top: 24px !important;
   padding: 20px 24px !important;
   border-radius: 18px !important;
   border: 1px solid #dbeafe !important;
@@ -990,6 +997,16 @@ html {
 
   .ptp-related-products ul.products li.product img {
     height: 170px !important;
+  }
+
+  .ptp-coach-strip,
+  .ptp-invite-friends {
+    margin-top: 20px !important;
+    padding: 18px !important;
+  }
+
+  .ptp-invite-icon {
+    font-size: 2rem !important;
   }
 
   .ptp-trustindex-under-image {
