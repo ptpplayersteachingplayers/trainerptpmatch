@@ -30,6 +30,9 @@ class PTP_Product_Page_Designer_Complete {
         // Add trust badges and urgency section after cart button
         add_action('woocommerce_after_add_to_cart_button', array($this, 'add_trust_urgency_section'));
 
+        // Add invite-a-friend CTA in summary column
+        add_action('woocommerce_single_product_summary', array($this, 'add_invite_friend_section'), 55);
+
         // Add Trustindex reviews under product image
         add_action('woocommerce_product_thumbnails', array($this, 'add_trustindex_under_image'), 25);
 
@@ -42,6 +45,9 @@ class PTP_Product_Page_Designer_Complete {
 
         // Add Event schema
         add_action('wp_footer', array($this, 'output_event_schema'));
+
+        // Output lightweight UX helpers
+        add_action('wp_footer', array($this, 'output_invite_friend_script'), 25);
 
         // Keep related products in default position
         add_action('woocommerce_after_single_product_summary', 'woocommerce_output_related_products', 20);
@@ -238,16 +244,19 @@ class PTP_Product_Page_Designer_Complete {
      */
     public function add_coach_strip() {
         ?>
-        <div class="ptp-coach-strip">
+        <section class="ptp-coach-strip" aria-labelledby="ptp-coach-strip-heading">
             <div class="ptp-coach-strip-inner">
-                <div class="ptp-coach-avatar" style="background: #ddd; border-radius: 50%; width: 48px; height: 48px;"></div>
-                <div class="ptp-coach-avatar" style="background: #bbb; border-radius: 50%; width: 48px; height: 48px;"></div>
-                <div class="ptp-coach-avatar" style="background: #999; border-radius: 50%; width: 48px; height: 48px;"></div>
+                <div class="ptp-coach-avatars" aria-hidden="true">
+                    <span class="ptp-coach-avatar ptp-coach-avatar--a"></span>
+                    <span class="ptp-coach-avatar ptp-coach-avatar--b"></span>
+                    <span class="ptp-coach-avatar ptp-coach-avatar--c"></span>
+                </div>
                 <div class="ptp-coach-info">
-                    <span class="ptp-coach-title">Led by NCAA &amp; Pro Coaches</span>
+                    <h3 id="ptp-coach-strip-heading" class="ptp-coach-title">Led by NCAA &amp; Pro Coaches</h3>
+                    <p class="ptp-coach-copy">Small group stations, game-speed reps, and live feedback so every player levels up.</p>
                 </div>
             </div>
-        </div>
+        </section>
         <?php
     }
 
@@ -265,10 +274,9 @@ class PTP_Product_Page_Designer_Complete {
         $stock_qty = $product->get_stock_quantity();
 
         ?>
-        <div class="ptp-trust-urgency-wrapper">
-            <!-- Urgency Banner -->
+        <section class="ptp-trust-urgency-wrapper" aria-label="Clinic trust signals">
             <?php if ($stock_qty !== null && $stock_qty > 0 && $stock_qty <= 50) : ?>
-                <div class="ptp-urgency-banner">
+                <div class="ptp-urgency-banner" role="status" aria-live="polite">
                     <p class="ptp-urgency-text">
                         <?php if ($stock_qty <= 5) : ?>
                             <strong>Almost sold out!</strong> Only <?php echo esc_html($stock_qty); ?> spot<?php echo $stock_qty > 1 ? 's' : ''; ?> remaining
@@ -283,22 +291,65 @@ class PTP_Product_Page_Designer_Complete {
                 </div>
             <?php endif; ?>
 
-            <!-- Trust Badges Grid - Compact -->
-            <div class="ptp-trust-badges">
-                <div class="ptp-trust-badge">
-                    <span class="ptp-badge-icon">🔒</span>
-                    <span class="ptp-badge-text">Secure Payment</span>
+            <div class="ptp-trust-badges" role="list">
+                <div class="ptp-trust-badge" role="listitem">
+                    <span class="ptp-badge-icon" aria-hidden="true">🔒</span>
+                    <span class="ptp-badge-text">Secure payment processing</span>
                 </div>
-                <div class="ptp-trust-badge">
-                    <span class="ptp-badge-icon">🔄</span>
-                    <span class="ptp-badge-text">Easy Cancellation</span>
+                <div class="ptp-trust-badge" role="listitem">
+                    <span class="ptp-badge-icon" aria-hidden="true">🔄</span>
+                    <span class="ptp-badge-text">Easy cancellation credits</span>
                 </div>
-                <div class="ptp-trust-badge">
-                    <span class="ptp-badge-icon">📞</span>
-                    <span class="ptp-badge-text">24/7 Support</span>
+                <div class="ptp-trust-badge" role="listitem">
+                    <span class="ptp-badge-icon" aria-hidden="true">📞</span>
+                    <span class="ptp-badge-text">Live support team</span>
                 </div>
             </div>
-        </div>
+        </section>
+        <?php
+    }
+
+    /**
+     * Invite-a-friend block to encourage sharing.
+     */
+    public function add_invite_friend_section() {
+        $product = $this->get_current_product();
+
+        if (!$product) {
+            return;
+        }
+
+        $permalink = get_permalink($product->get_id());
+
+        if (!$permalink) {
+            return;
+        }
+
+        $title = wp_strip_all_tags(get_the_title($product->get_id()));
+        $email_subject = rawurlencode(sprintf(__('Join me at %s', 'ptp'), $title));
+        $email_body = rawurlencode(sprintf("I found this camp and thought you'd love it!\n\n%s", $permalink));
+        $sms_body = rawurlencode(sprintf(__('Check out this camp: %s', 'ptp'), $permalink));
+
+        ?>
+        <section class="ptp-invite-friends" aria-labelledby="ptp-invite-heading">
+            <div class="ptp-invite-icon" aria-hidden="true">🤝</div>
+            <div class="ptp-invite-content">
+                <h3 id="ptp-invite-heading"><?php esc_html_e('Camp is more fun with friends', 'ptp'); ?></h3>
+                <p><?php esc_html_e('Share this clinic with teammates in one tap.', 'ptp'); ?></p>
+                <div class="ptp-invite-actions">
+                    <button type="button" class="ptp-copy-link" data-link="<?php echo esc_attr($permalink); ?>">
+                        <?php esc_html_e('Copy link', 'ptp'); ?>
+                    </button>
+                    <a class="ptp-action-link" href="mailto:?subject=<?php echo esc_attr($email_subject); ?>&amp;body=<?php echo esc_attr($email_body); ?>">
+                        <?php esc_html_e('Email invite', 'ptp'); ?>
+                    </a>
+                    <a class="ptp-action-link" href="sms:?&amp;body=<?php echo esc_attr($sms_body); ?>">
+                        <?php esc_html_e('Text invite', 'ptp'); ?>
+                    </a>
+                </div>
+                <p class="ptp-copy-feedback" role="status" aria-live="polite"></p>
+            </div>
+        </section>
         <?php
     }
 
@@ -666,6 +717,88 @@ class PTP_Product_Page_Designer_Complete {
         }
 
         echo '<script type="application/ld+json">' . $json . '</script>';
+    }
+
+    /**
+     * Lightweight client-side helpers for invite-a-friend UX.
+     */
+    public function output_invite_friend_script() {
+        if (!is_product()) {
+            return;
+        }
+
+        $copy_success = esc_js(__('Link copied! Share it with your friends.', 'ptp'));
+        $copy_error = esc_js(__('Copy failed — use the email or text buttons.', 'ptp'));
+        $copy_missing = esc_js(__('Unable to copy link.', 'ptp'));
+
+        ?>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          var sections = document.querySelectorAll('.ptp-invite-friends');
+          if (!sections.length) return;
+
+          sections.forEach(function(section) {
+            var button = section.querySelector('.ptp-copy-link');
+            var feedback = section.querySelector('.ptp-copy-feedback');
+            if (!button) return;
+
+            var showMessage = function(message, isError) {
+              if (!feedback) return;
+              feedback.textContent = message;
+              feedback.classList.toggle('is-error', !!isError);
+              feedback.classList.add('is-visible');
+              window.setTimeout(function() {
+                feedback.textContent = '';
+                feedback.classList.remove('is-visible');
+                feedback.classList.remove('is-error');
+              }, 4000);
+            };
+
+            button.addEventListener('click', function() {
+              var link = button.getAttribute('data-link');
+              if (!link) {
+                showMessage('<?php echo $copy_missing; ?>', true);
+                return;
+              }
+
+              var onSuccess = function() {
+                showMessage('<?php echo $copy_success; ?>');
+              };
+
+              var onError = function() {
+                showMessage('<?php echo $copy_error; ?>', true);
+              };
+
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(link).then(onSuccess, onError);
+                return;
+              }
+
+              var temp = document.createElement('input');
+              temp.value = link;
+              temp.setAttribute('readonly', '');
+              temp.style.position = 'absolute';
+              temp.style.opacity = '0';
+              document.body.appendChild(temp);
+              temp.select();
+
+              try {
+                var ok = document.execCommand('copy');
+                document.body.removeChild(temp);
+                if (ok) {
+                  onSuccess();
+                } else {
+                  onError();
+                }
+              } catch (err) {
+                document.body.removeChild(temp);
+                onError();
+              }
+            });
+          });
+        });
+        </script>
+        <?php
     }
 }
 
